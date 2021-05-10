@@ -3,23 +3,24 @@ package com.example.coroutines
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.android.synthetic.main.activity_main.*
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Dispatchers.Main
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
     private val RESULT_1 = "Result #1"
     private val RESULT_2 = "Result #2"
+    val JOB_TIMEOUT = 2100L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         button.setOnClickListener {
+
+            setNewText("Click!")
+
             CoroutineScope(IO).launch {
                 fakeApiRequest()
             }
@@ -31,26 +32,31 @@ class MainActivity : AppCompatActivity() {
         text.text = newText
     }
 
-    private suspend fun setTextOnMainThread(input: String){
-        withContext(Main){
+    private suspend fun setTextOnMainThread(input: String) {
+        withContext(Main) {
             setNewText(input)
         }
     }
 
     private suspend fun fakeApiRequest() {
-        val result1 = getResult1FromApi()
-        println("debug: ${result1}")
-        setTextOnMainThread(result1)
+        withContext(IO) {
+            val job = withTimeoutOrNull(JOB_TIMEOUT) {
+                val result1 = getResult1FromApi()
+                setTextOnMainThread("Got $result1")
 
-        val result2 = getResult2FromApi()
-        println("debug: ${result2}")
-        setTextOnMainThread(result2)
+                val result2 = getResult2FromApi()
+                setTextOnMainThread("Got $result2")
+            }
+            if (job == null) {
+                val cancelMessage = "Canceling job... job took longe than $JOB_TIMEOUT"
+                println("debug $cancelMessage")
+            } else {
+
+            }
+        }
+
     }
 
-    /*
-    suspend keyword make function as something can be async.
-    able to use in coroutine
-     */
     private suspend fun getResult1FromApi(): String {
         logThread("getResult1FromApi")
         delay(1000)
